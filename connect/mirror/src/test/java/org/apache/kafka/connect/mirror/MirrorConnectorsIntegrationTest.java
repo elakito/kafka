@@ -470,6 +470,9 @@ public class MirrorConnectorsIntegrationTest {
             consumeAllMessages(primaryConsumer);
         }
 
+        // produce another set of records to the same topic
+        produceMessages(primary, topic1, "message-1-");
+
         // enable automated consumer group offset sync
         mm2Props.put("sync.group.offsets.enabled", "true");
         mm2Props.put("sync.group.offsets.interval.seconds", "1");
@@ -490,10 +493,10 @@ public class MirrorConnectorsIntegrationTest {
             records = backupConsumer.poll(Duration.ofMillis(500));
         }
 
-        // the size of consumer record should be zero, because the offsets of the same consumer group
-        // have been automatically synchronized from primary to backup by the background job, so no
-        // more records to consume from the replicated topic by the same consumer group at backup cluster
-        assertEquals("consumer record size is not zero", 0, records.count());
+        // the size of consumer record should be NUM_PARTITIONS * NUM_RECORDS_PER_PARTITION, because that number of records
+        // have been added to the topic after the primary consumer quit.
+        // These records are replicated and consumed by the same consumer group at backup cluster
+        assertEquals("consumer record size is unexpected", NUM_PARTITIONS * NUM_RECORDS_PER_PARTITION, records.count());
 
         // create a second topic
         primary.kafka().createTopic(topic2, NUM_PARTITIONS);
@@ -508,6 +511,8 @@ public class MirrorConnectorsIntegrationTest {
             // we need to wait for consuming all the records for MM2 replicating the expected offsets
             consumeAllMessages(primaryConsumer);
         }
+        // produce another set of records to the same topic
+        produceMessages(primary, topic2, "message-1-");
 
         waitForConsumerGroupOffsetReplication(Arrays.asList("primary." + topic1, "primary." + topic2), consumerGroupName, true);
 
@@ -517,8 +522,8 @@ public class MirrorConnectorsIntegrationTest {
             records = backupConsumer.poll(Duration.ofMillis(500));
         }
 
-        // similar reasoning as above, no more records to consume by the same consumer group at backup cluster
-        assertEquals("consumer record size is not zero", 0, records.count());
+        // similar reasoning as above, only the second batch of the records to be consumed by the same consumer group at backup cluster
+        assertEquals("consumer record size is unexpected", NUM_PARTITIONS * NUM_RECORDS_PER_PARTITION, records.count());
     }
 
     private void deleteAllTopics(EmbeddedKafkaCluster cluster) {
