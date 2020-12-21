@@ -16,6 +16,9 @@
  */
 package org.apache.kafka.connect.cli;
 
+import joptsimple.OptionSpec;
+import joptsimple.OptionParser;
+import joptsimple.OptionSet;
 import org.apache.kafka.common.utils.Exit;
 import org.apache.kafka.common.utils.Time;
 import org.apache.kafka.common.utils.Utils;
@@ -39,6 +42,7 @@ import org.apache.kafka.connect.util.ConnectUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Collections;
@@ -70,10 +74,7 @@ public class ConnectDistributed {
             WorkerInfo initInfo = new WorkerInfo();
             initInfo.logAll();
 
-            String workerPropsFile = args[0];
-            Map<String, String> workerProps = !workerPropsFile.isEmpty() ?
-                    Utils.propsToStringMap(Utils.loadProps(workerPropsFile)) : Collections.emptyMap();
-
+            Map<String, String> workerProps = getPropsFromArgs(args);
             ConnectDistributed connectDistributed = new ConnectDistributed();
             Connect connect = connectDistributed.startConnect(workerProps);
 
@@ -137,4 +138,22 @@ public class ConnectDistributed {
         return connect;
     }
 
+    static Map<String, String> getPropsFromArgs(String[] args) throws IOException {
+        String workerPropsFile = args[0];
+        Map<String, String> workerProps = !workerPropsFile.isEmpty() ?
+                Utils.propsToStringMap(Utils.loadProps(workerPropsFile)) : Collections.emptyMap();
+
+        OptionParser optionParser = new OptionParser(false);
+        OptionSpec<String> overrideOpt =
+                optionParser.accepts("override", "Optional property that should override values set in worker.properties file")
+                        .withRequiredArg()
+                        .ofType(String.class);
+
+        OptionSet options = optionParser.parse(Arrays.copyOfRange(args, 1, args.length));
+        for (String oop : options.valuesOf(overrideOpt)) {
+            String[] oops = oop.split("=", 2);
+            workerProps.put(oops[0].trim(), oops[1].trim());
+        }
+        return workerProps;
+    }
 }

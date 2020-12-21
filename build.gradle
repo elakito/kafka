@@ -1923,6 +1923,7 @@ project(':connect:runtime') {
     compile libs.jettyServlet
     compile libs.jettyServlets
     compile libs.jettyClient
+    compile libs.joptSimple
     compile(libs.reflections)
     compile(libs.mavenArtifact)
 
