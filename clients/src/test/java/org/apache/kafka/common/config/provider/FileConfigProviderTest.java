@@ -20,9 +20,13 @@ import org.apache.kafka.common.config.ConfigData;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -84,6 +88,27 @@ public class FileConfigProviderTest {
         ConfigData configData = configProvider.get(null, Collections.singleton("testKey"));
         assertTrue(configData.data().isEmpty());
         assertEquals(null, configData.ttl());
+    }
+
+    @Test
+    public void testGetKeysWithRestrictedPath() throws Exception {
+        File configFile = File.createTempFile("config", "properties");
+        configFile.deleteOnExit();
+        try(FileOutputStream configOut = new FileOutputStream(configFile)){
+            configOut.write("testKey3=testResult3\ntestKey4=testResult4".getBytes());
+        }
+
+        // restrict the file path at the parent of this config file
+        FileConfigProvider restictedConfigProvider = new FileConfigProvider();
+        Map<String, Object> configProviderConfig = Collections.singletonMap("root", configFile.getParent());
+        restictedConfigProvider.configure(configProviderConfig);
+
+        // read the config file using its name from the restricted location
+        ConfigData configData = restictedConfigProvider.get(configFile.getName());
+        Map<String, String> result = new HashMap<>();
+        result.put("testKey3", "testResult3");
+        result.put("testKey4", "testResult4");
+        assertEquals(result, configData.data());
     }
 
     public static class TestFileConfigProvider extends FileConfigProvider {

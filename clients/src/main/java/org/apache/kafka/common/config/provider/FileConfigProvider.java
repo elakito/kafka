@@ -34,8 +34,16 @@ import java.util.Set;
  * All property keys and values are stored as cleartext.
  */
 public class FileConfigProvider implements ConfigProvider {
+    public final String PARAM_ROOT = "root";
+
+    protected String root;
 
     public void configure(Map<String, ?> configs) {
+        for (Map.Entry<String, ?> entry : configs.entrySet()) {
+            if (PARAM_ROOT.equals(entry.getKey())) {
+                root = entry.getValue().toString();
+            }
+        }
     }
 
     /**
@@ -95,7 +103,7 @@ public class FileConfigProvider implements ConfigProvider {
 
     // visible for testing
     protected Reader reader(String path) throws IOException {
-        return Files.newBufferedReader(Paths.get(path));
+        return Files.newBufferedReader(root == null ? Paths.get(path) : Paths.get(root, path));
     }
 
     public void close() {
